@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LTC Trading</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #131722; color: #d1d4dc; padding: 12px; margin: 0; }
+        .card { background: #1e222d; border-radius: 8px; padding: 12px; margin-bottom: 12px; border: 1px solid #2a2e39; }
+        h3 { margin: 0 0 10px 0; font-size: 14px; color: #787b86; text-transform: uppercase; }
+        .balance-val { font-size: 1.2em; font-weight: bold; color: #fff; }
+        .btn-group { display: flex; gap: 8px; margin-top: 10px; }
+        button { flex: 1; padding: 12px; border-radius: 4px; border: none; font-weight: bold; cursor: pointer; }
+        .btn-buy { background: #089981; color: white; }
+        .btn-sell { background: #f23645; color: white; }
+        input { width: 100%; box-sizing: border-box; padding: 10px; border-radius: 4px; border: 1px solid #363c4e; background: #131722; color: #fff; margin-bottom: 8px; }
+        #chart-container { height: 280px; width: 100%; border-radius: 8px; overflow: hidden; }
+    </style>
+</head>
+<body>
+
+    <!-- Gráfica de TradingView -->
+    <div class="card" style="padding: 0;">
+        <div id="chart-container">
+            <iframe src="https://s.tradingview.com/widgetembed/?frameElementId=tradingview_1&symbol=BINANCE%3ALTCUSDT&interval=D&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=f1f3f6&studies=[]&theme=dark&style=1&timezone=Etc%2FUTC" 
+                    width="100%" height="100%" frameborder="0" allowtransparency="true" scrolling="no"></iframe>
+        </div>
+    </div>
+
+    <!-- Saldos -->
+    <div class="card">
+        <h3>Mi Billetera</h3>
+        <div style="display: flex; justify-content: space-between;">
+            <div>USD: <span class="balance-val" id="usd-balance">$1,000.00</span></div>
+            <div>LTC: <span class="balance-val" id="ltc-balance">0.0000</span></div>
+        </div>
+    </div>
+
+    <!-- Panel de Ordenes -->
+    <div class="card">
+        <h3>Operar LTC</h3>
+        <input type="number" id="trade-amount" placeholder="Monto en LTC (ej. 0.5)" step="0.01">
+        <div class="btn-group">
+            <button class="btn-buy" onclick="executeTrade('buy')">Comprar</button>
+            <button class="btn-sell" onclick="executeTrade('sell')">Vender</button>
+        </div>
+    </div>
+
+    <!-- Transferencia -->
+    <div class="card">
+        <h3>Transferir LTC</h3>
+        <input type="text" id="transfer-address" placeholder="Dirección de destino">
+        <input type="number" id="transfer-amount" placeholder="Cantidad de LTC" step="0.01">
+        <button style="background: #2980b9; color: white; margin-top: 5px;" onclick="transferLtc()">Enviar Transferencia</button>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        let usdBalance = 1000.00;
+        let ltcBalance = 0.00;
+        let ltcPrice = 75.00;
+
+        async function updatePrice() {
+            try {
+                const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=litecoin&vs_currencies=usd');
+                const data = await res.json();
+                ltcPrice = data.litecoin.usd;
+            } catch (e) { console.log("Usando precio base"); }
+        }
+
+        function executeTrade(type) {
+            const amount = parseFloat(document.getElementById('trade-amount').value);
+            if (!amount || amount <= 0) return alert("Ingresa una cantidad válida.");
+
+            const cost = amount * ltcPrice;
+
+            if (type === 'buy') {
+                if (usdBalance >= cost) {
+                    usdBalance -= cost;
+                    ltcBalance += amount;
+                    alert(`Compra exitosa: ${amount} LTC por $${cost.toFixed(2)} USD`);
+                } else alert("Saldo insuficiente en USD.");
+            } else {
+                if (ltcBalance >= amount) {
+                    ltcBalance -= amount;
+                    usdBalance += cost;
+                    alert(`Venta exitosa: ${amount} LTC por $${cost.toFixed(2)} USD`);
+                } else alert("Saldo insuficiente en LTC.");
+            }
+
+            document.getElementById('usd-balance').innerText = `$${usdBalance.toFixed(2)}`;
+            document.getElementById('ltc-balance').innerText = ltcBalance.toFixed(4);
+        }
+
+        function transferLtc() {
+            const address = document.getElementById('transfer-address').value;
+            const amount = parseFloat(document.getElementById('transfer-amount').value);
+
+            if (!address) return alert("Ingresa una dirección de destino.");
+            if (!amount || amount <= 0) return alert("Ingresa un monto válido.");
+
+            if (ltcBalance >= amount) {
+                ltcBalance -= amount;
+                alert(`Transferencia enviada con éxito:\n${amount} LTC a ${address}`);
+                document.getElementById('ltc-balance').innerText = ltcBalance.toFixed(4);
+            } else alert("No tienes suficiente LTC para transferir.");
+        }
+
+        updatePrice();
+        setInterval(updatePrice, 15000);
+    </script>
+</body>
+</html>
